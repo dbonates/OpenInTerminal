@@ -53,19 +53,65 @@ class OpenInTerminal: NSObject {
         guard let mainMenu = NSApp.mainMenu else { return false }
         guard let item = mainMenu.itemWithTitle("Edit") else { return false }
         guard let submenu = item.submenu else { return false }
-
-        let actionMenuItem = NSMenuItem(title:"Do Action", action:#selector(self.doMenuAction), keyEquivalent:"")
+        
+        
+        let actionMenuItem = NSMenuItem(title:"Open in Terminal", action:#selector(self.doMenuAction), keyEquivalent:"")
         actionMenuItem.target = self
-
+        
         submenu.addItem(NSMenuItem.separatorItem())
         submenu.addItem(actionMenuItem)
-
+        
         return true
     }
-
+    
     func doMenuAction() {
-        let error = NSError(domain: "Hello World!", code:42, userInfo:nil)
-        NSAlert(error: error).runModal()
+        
+        guard let anyClass = NSClassFromString("IDEWorkspaceWindowController") as? NSObject.Type,
+            let windowControllers = anyClass.valueForKey("workspaceWindowControllers") as? [NSObject] ,
+            let window = NSApp.keyWindow ?? NSApp.windows.first else {
+                Swift.print("Failed to establish workspace path")
+                return
+        }
+        
+        
+        var workspace: NSObject?
+        for controller in windowControllers {
+            if controller.valueForKey("window")?.isEqual(window) == true {
+                workspace = controller.valueForKey("_workspace") as? NSObject
+            }
+        }
+        
+        guard let workspacePath = workspace?.valueForKeyPath("representingFilePath._pathString") as? NSString else {
+            Swift.print("Failed to establish workspace path")
+            return
+        }
+        
+        let task = NSTask()
+        task.launchPath = "/bin/sh"
+        task.arguments = ["-c", "open -a /Applications/Utilities/Terminal.app \(workspacePath.stringByDeletingLastPathComponent)"]
+        //let pipe = NSPipe()
+        //task.standardOutput = pipe
+        //task.standardError = pipe
+        task.launch()
+        task.waitUntilExit()
+        //let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        //let output: String = NSString(data: data, encoding: NSUTF8StringEncoding) as! String
+        //showAlert("Terminal Opened", text: output)
+        
+        
+    }
+    
+    func showAlert(question: String, text: String) -> Bool {
+        let myPopup: NSAlert = NSAlert()
+        myPopup.messageText = question
+        myPopup.informativeText = text
+        myPopup.alertStyle = .InformationalAlertStyle
+        myPopup.addButtonWithTitle("OK")
+        let res = myPopup.runModal()
+        if res == NSAlertFirstButtonReturn {
+            return true
+        }
+        return false
     }
 }
 
